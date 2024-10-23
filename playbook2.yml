@@ -1,0 +1,19 @@
+---
+- hosts: all
+  become: true
+  vars:
+    nginx_listen_port: 8080
+  tasks: 
+  - name: insert line in file
+    ansible.builtin.lineinfile:
+      path: /etc/nginx/nginx.conf
+      insertafter: 'listen       \[\:\:\]\:80;'
+      line: '        index index.html index.htm;'
+      state: present
+
+  - name: insert line in file
+    ansible.builtin.lineinfile:
+      path: /etc/nginx/nginx.conf
+      insertafter: '        index index.html index.htm;'
+      line: '        autoindex on;'
+      state: present

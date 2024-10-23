@@ -1,0 +1,46 @@
+---
+- hosts: all
+  become: true
+  vars:
+    nginx_listen_port: 8080
+  tasks: 
+  - name: Install a list of packages with a list variable
+    ansible.builtin.yum:
+      name: "{{ packages }}"
+    vars:
+      packages: 
+      - wget
+      - mc
+      - rpmdevtools
+      - rpm-build
+      - createrepo
+      - yum-utils
+      - cmake
+      - gcc
+      - git
+      - nano
+
+  - name: Build nginx 1
+    shell: |
+      sudo mkdir /root/rpm
+      sudo cd /root/rpm
+      sudo yumdownloader --source nginx
+      sudo rpm -Uvh nginx*.src.rpm
+      sudo yum-builddep nginx -y
+      sudo cd /root
+      sudo mkdir /root/temp/ngx_brotli
+      sudo git clone --recurse-submodules -j8 https://github.com/google/ngx_brotli /root/temp/ngx_brotli
+      sudo mv /root/temp/ngx_brotli /root/ngx_brotli
+      sudo mkdir /root/ngx_brotli/deps/brotli/out
+      sudo cd /root/ngx_brotli/deps/brotli/out
+      sudo cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_C_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" -DCMAKE_CXX_FLAGS="-Ofast -m64 -march=native -mtune=native -flto -funroll-loops -ffunction-sections -fdata-sections -Wl,--gc-sections" -DCMAKE_INSTALL_PREFIX=./installed ..
+      sudo cmake --build . --config Release -j 2 --target brotlienc
+      sudo cd ../../../..
+
+
+  - name: insert line in file
+    ansible.builtin.lineinfile:
+      path: /root/rpmbuild/SPECS/nginx.spec
+      insertafter: 'if ! ./configure \\'
+      line: '    --add-module=/root/ngx_brotli \'
+      state: present
